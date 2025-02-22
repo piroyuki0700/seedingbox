@@ -1,0 +1,9 @@
+{
+    "control_enabled": true,
+    "day_start": "09:00",
+    "day_end": "17:00",
+    "day_temp_min": 25,
+    "day_temp_max": 30,
+    "night_temp_min": 10,
+    "night_temp_max": 15
+}

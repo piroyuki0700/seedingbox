@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>育苗箱 温度管理</title>
+    <style>
+        body {
+            background-color: seagreen;
+        }
+        /* 全体カード */
+        .card {
+            background: #f0fff8;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px auto;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+            font-family: Arial, sans-serif;
+        }
+        .card h1 {
+            text-align: center;
+            margin: 20px;
+            font-size: 1.8rem;
+        }
+        /* セクション見出し */
+        .card h2 {
+            margin: 10px 0px;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+        /* ステータス部分の行 */
+        .status-row {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        /* セクション見出し */
+        .card h2 {
+            margin: 10px 0px;
+            text-align: center;
+        }
+        /* トグルスイッチ CSS */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 28px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 23px;
+            width: 23px;
+            left: 5px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: seagreen;
+        }
+        input:checked + .slider:before {
+            transform: translateX(28px);
+        }
+        /* フォームの行 */
+        .form-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        /* 制御スイッチ専用（ラベルは上段、スイッチは下段） */
+        .switch-container {
+            display: block;
+            margin-top: 5px;
+        }
+        .form-group {
+            flex: 1;
+            margin-right: 10px;
+        }
+        .form-group:last-child {
+            margin-right: 0;
+        }
+        label {
+            margin-bottom: 5px;
+        }
+        input[type="number"] {
+            width: 4em;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ced4da;
+        }
+        input[type="time"] {
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ced4da;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #2196F3;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button {
+            background: seagreen;
+            color: white;
+        }
+        button:hover {
+            background: lightseagreen;
+        }
+        #reset-btn {
+            background: slategray;
+            color: white;
+        }
+        #reset-btn:hover {
+            background: silver;
+        }
+        .button-group {
+            display: flex;
+            align-items: center;
+        }
+    </style>
+    <script>
+        const URL_API_BASE = "http://{{server_ip}}:5000/api";
+
+        // ページ読み込み時にステータス取得とフォームへ設定値のロード
+        window.onload = function() {
+            updateStatus();
+            loadConfigIntoForm();
+        };
+
+        // /statusから最新データを取得して、上部のステータスカードに反映
+        function updateStatus() {
+            fetch(URL_API_BASE + '/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('currentTemp').innerText = data.temperature + " °C";
+                    document.getElementById('heaterStatus').innerText = data.heater ? "ON" : "OFF";
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // /statusから取得した設定値を設定フォームに反映
+        function loadConfigIntoForm() {
+            fetch(URL_API_BASE + '/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('inputDayStart').value = data.day_start;
+                    document.getElementById('inputDayEnd').value = data.day_end;
+                    document.getElementById('inputDayMin').value = data.day_min;
+                    document.getElementById('inputDayMax').value = data.day_max;
+                    document.getElementById('inputNightMin').value = data.night_min;
+                    document.getElementById('inputNightMax').value = data.night_max;
+                    document.getElementById('inputControl').checked = data.control_enabled;
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // 設定更新フォーム送信時の処理
+        function updateConfig() {
+            let newConfig = {
+                day_start: document.getElementById('inputDayStart').value,
+                day_end: document.getElementById('inputDayEnd').value,
+                day_temp_min: parseFloat(document.getElementById('inputDayMin').value),
+                day_temp_max: parseFloat(document.getElementById('inputDayMax').value),
+                night_temp_min: parseFloat(document.getElementById('inputNightMin').value),
+                night_temp_max: parseFloat(document.getElementById('inputNightMax').value),
+                control_enabled: document.getElementById('inputControl').checked
+            };
+            fetch(URL_API_BASE + '/update_config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(newConfig)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.result === "success") {
+                    alert("設定を更新しました");
+                    updateStatus();
+                } else {
+                    alert("設定更新エラー");
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
+</head>
+<body>
+    <div class="card">
+        <h1>🍀Seeding Box</h1>
+        <div class="status-row">
+            <div>温度: <span id="currentTemp">--</span></div>
+            <div>ヒーター: <span id="heaterStatus">--</span></div>
+            <button onclick="updateStatus()">更新</button>
+        </div>
+        <hr>
+        <h2>設定変更</h2>
+        <form onsubmit="event.preventDefault(); updateConfig();">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>制御 ON/OFF</label>
+                    <div class="switch-container">
+                        <label class="switch">
+                            <input type="checkbox" id="inputControl">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button type="submit">保存</button>
+                    <button type="button" id="reset-btn" onclick="loadConfigIntoForm()">リセット</button>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="inputDayStart">昼開始時刻</label>
+                    <input type="time" id="inputDayStart" required>
+                </div>
+                <div class="form-group">
+                    <label for="inputDayEnd">夜開始時刻</label>
+                    <input type="time" id="inputDayEnd" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="inputDayMin">昼間温度</label>
+                    <input type="number" id="inputDayMin" step="1" min="1" max="30" required> 〜
+                    <input type="number" id="inputDayMax" step="1" min="1" max="30" required> °C
+                </div>
+                <div class="form-group">
+                    <label for="inputNightMin">夜間温度</label>
+                    <input type="number" id="inputNightMin" step="1" min="1" max="30" required> 〜
+                    <input type="number" id="inputNightMax" step="1" min="1" max="30" required> °C
+                </div>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
+

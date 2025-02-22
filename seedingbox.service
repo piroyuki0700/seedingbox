@@ -1,0 +1,15 @@
+[Unit]
+Description=育苗箱 温度管理サービス
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /path/to/seedbox_control.py
+WorkingDirectory=/path/to
+Restart=always
+User=pi
+Group=pi
+# 必要に応じて環境変数などの設定を追加
+
+[Install]
+WantedBy=multi-user.target
+
