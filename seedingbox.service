@@ -5,8 +5,8 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/home/pi/work/seedingbox/
-ExecStart=/usr/bin/python3 /home/pi/work/seedingbox/seedbox_control.py on
-ExecStop=/usr/bin/python3 /home/pi/work/seedingbox/seedbox_control.py off
+ExecStart=/usr/bin/python3 /home/pi/work/seedingbox/app.py on
+ExecStop=/usr/bin/python3 /home/pi/work/seedingbox/app.py off
 Restart=always
 # User=pi
 # Group=pi

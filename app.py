@@ -38,7 +38,7 @@ except ImportError:
 
 # 定数定義
 CONTROL_CYCLE  = 60 # 60秒ごと
-DS18B20_DEVICE = "/sys/bus/w1/devices/28-XXXXXXXX/w1_slave"  # 実際のデバイスファイルに変更してください
+DS18B20_DEVICE = "/sys/bus/w1/devices/28-01204bfedcd9/w1_slave"  # 実際のデバイスファイルに変更してください
 HEATER_GPIO_PIN = 24  # 固定GPIOピン番号
 CONFIG_FILE = "seedbox_config.json"
 LOG_FILE = "seedbox_control.log"
@@ -178,8 +178,7 @@ def control_loop():
             logger.info("温度取得失敗")
             heater_off()
 
-        # 10秒間、stop_event がセットされるか待つ
-        stop_event.wait(timeout=10)
+        stop_event.wait(timeout=CONTROL_CYCLE)  # 制御周期
 
 def cleanup():
     heater_off()
@@ -189,16 +188,21 @@ def cleanup():
 # Flaskアプリケーション設定
 app = Flask(__name__)
 
-
 # サーバーのローカルIPアドレスを取得
-def get_ip_address():
-    hostname = socket.gethostname()
-    return socket.gethostbyname(hostname)
+def get_local_ip():
+    try:
+        # 外部に接続せずにローカルIPを取得
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))  # Google DNSを利用 (実際に接続しない)
+            return s.getsockname()[0]  # IPアドレスを取得
+    except Exception as e:
+        print(f"IPアドレス取得エラー: {e}")
+        return "127.0.0.1"
 
 # ルート：HTML画面の表示
 @app.route('/')
 def index():
-    ip_address = get_ip_address()  # サーバーのIPアドレス取得
+    ip_address = get_local_ip()  # サーバーのIPアドレス取得
     return render_template('index.html', server_ip=ip_address)
 
 # ステータス取得エンドポイント（GET /status）
