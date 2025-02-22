@@ -237,16 +237,20 @@ def update_config():
 if __name__ == "__main__":
     setup_logger()
     load_config()
-    # 温度制御用のバックグラウンドスレッド開始
-    control_thread = threading.Thread(target=control_loop, daemon=True)
-    control_thread.start()
     try:
-        # Flask の reloader を無効にして実行
-        app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+        # 温度制御用のバックグラウンドスレッド開始
+        control_thread = threading.Thread(target=control_loop, daemon=True)
+        control_thread.start()
+
+        if len(sys.argv) > 1 and sys.argv[1] == 'on':
+            # Flask の reloader を無効にして実行
+            app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+
     except KeyboardInterrupt:
         logger.info("KeyboardInterrupt を検知")
     finally:
-        stop_event.set()
-        control_thread.join()
+        if control_thread and control_thread.is_alive():
+                stop_event.set()
+                control_thread.join(timeout=3)
         cleanup()
 
