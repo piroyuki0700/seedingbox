@@ -130,14 +130,12 @@ def heater_on():
     if not heater_status:
         GPIO.output(HEATER_GPIO_PIN, GPIO.HIGH)
         heater_status = True
-        logger.info("ヒーター ON")
 
 def heater_off():
     global heater_status
     if heater_status:
         GPIO.output(HEATER_GPIO_PIN, GPIO.LOW)
         heater_status = False
-        logger.info("ヒーター OFF")
 
 # 温度制御ループ（バックグラウンドスレッド）
 def control_loop():
@@ -167,8 +165,10 @@ def control_loop():
                     temp_max = local_config["night_temp_max"]
                 # 温度制御
                 if temp < temp_min:
+                    logger.info(f"ヒーター ON temp={temp} < {temp_min}")
                     heater_on()
                 elif temp > temp_max:
+                    logger.info(f"ヒーター OFF temp={temp} > {temp_max}")
                     heater_off()
                 # 温度が範囲内なら現在の状態を維持
             else:
