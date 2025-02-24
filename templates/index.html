@@ -2,8 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>育苗箱 温度管理</title>
+    <title>育苗箱 温度・LED管理システム</title>
     <style>
         body {
             background-color: seagreen;
@@ -19,6 +18,7 @@
             box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
             font-family: Arial, sans-serif;
         }
+        /* タイトル */
         .card h1 {
             text-align: center;
             margin: 20px;
@@ -115,6 +115,7 @@
             box-sizing: border-box;
             border: 1px solid #ced4da;
         }
+        /* ボタン */
         button {
             padding: 10px 15px;
             background-color: #2196F3;
@@ -159,6 +160,7 @@
                 .then(data => {
                     document.getElementById('currentTemp').innerText = data.temperature + " °C";
                     document.getElementById('heaterStatus').innerText = data.heater ? "ON" : "OFF";
+                    document.getElementById('ledStatus').innerText = data.led ? "ON" : "OFF";
                 })
                 .catch(error => console.error('Error:', error));
         }
@@ -174,6 +176,8 @@
                     document.getElementById('inputDayMax').value = data.day_max;
                     document.getElementById('inputNightMin').value = data.night_min;
                     document.getElementById('inputNightMax').value = data.night_max;
+                    document.getElementById('inputLedOn').value = data.led_on;
+                    document.getElementById('inputLedOff').value = data.led_off;
                     document.getElementById('inputControl').checked = data.control_enabled;
                 })
                 .catch(error => console.error('Error:', error));
@@ -184,10 +188,12 @@
             let newConfig = {
                 day_start: document.getElementById('inputDayStart').value,
                 day_end: document.getElementById('inputDayEnd').value,
-                day_temp_min: parseFloat(document.getElementById('inputDayMin').value),
-                day_temp_max: parseFloat(document.getElementById('inputDayMax').value),
-                night_temp_min: parseFloat(document.getElementById('inputNightMin').value),
-                night_temp_max: parseFloat(document.getElementById('inputNightMax').value),
+                day_temp_min: parseInt(document.getElementById('inputDayMin').value, 10),
+                day_temp_max: parseInt(document.getElementById('inputDayMax').value, 10),
+                night_temp_min: parseInt(document.getElementById('inputNightMin').value, 10),
+                night_temp_max: parseInt(document.getElementById('inputNightMax').value, 10),
+                led_on: document.getElementById('inputLedOn').value,
+                led_off: document.getElementById('inputLedOff').value,
                 control_enabled: document.getElementById('inputControl').checked
             };
             fetch(URL_API_BASE + '/update_config', {
@@ -214,11 +220,13 @@
         <div class="status-row">
             <div>温度: <span id="currentTemp">--</span></div>
             <div>ヒーター: <span id="heaterStatus">--</span></div>
+            <div>LED照明: <span id="ledStatus">--</span></div>
             <button onclick="updateStatus()">更新</button>
         </div>
         <hr>
         <h2>設定変更</h2>
         <form onsubmit="event.preventDefault(); updateConfig();">
+            <!-- 制御ON/OFF スイッチ -->
             <div class="form-row">
                 <div class="form-group">
                     <label>制御 ON/OFF</label>
@@ -234,6 +242,7 @@
                     <button type="button" id="reset-btn" onclick="loadConfigIntoForm()">リセット</button>
                 </div>
             </div>
+            <!-- 昼間時刻 -->
             <div class="form-row">
                 <div class="form-group">
                     <label for="inputDayStart">昼開始時刻</label>
@@ -244,6 +253,7 @@
                     <input type="time" id="inputDayEnd" required>
                 </div>
             </div>
+            <!-- 昼間温度（下限〜上限） -->
             <div class="form-row">
                 <div class="form-group">
                     <label for="inputDayMin">昼間温度</label>
@@ -254,6 +264,15 @@
                     <label for="inputNightMin">夜間温度</label>
                     <input type="number" id="inputNightMin" step="1" min="1" max="30" required> 〜
                     <input type="number" id="inputNightMax" step="1" min="1" max="30" required> °C
+                </div>
+            </div>
+            <!-- LED点灯時間 -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>LED点灯時間</label>
+                    <input type="time" id="inputLedOn" required>
+                    <span>〜</span>
+                    <input type="time" id="inputLedOff" required>
                 </div>
             </div>
         </form>

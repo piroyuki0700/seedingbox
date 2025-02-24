@@ -39,7 +39,8 @@ except ImportError:
 # 定数定義
 CONTROL_CYCLE  = 60 # 60秒ごと
 DS18B20_DEVICE = "/sys/bus/w1/devices/28-01204bfedcd9/w1_slave"  # 実際のデバイスファイルに変更してください
-HEATER_GPIO_PIN = 24  # 固定GPIOピン番号
+HEATER_GPIO_PIN = 24  # ヒーター制御用
+LED_GPIO_PIN    = 23  # LED制御用
 CONFIG_FILE = "seedbox_config.json"
 LOG_FILE = "seedbox_control.log"
 LOG_TO_FILE = True  # Trueならファイル出力、Falseならコンソール出力
@@ -49,6 +50,8 @@ config = {}
 config_lock = threading.RLock()  # 設定更新時の排他制御用
 current_temp = None
 heater_status = False  # True: ヒーターON, False: OFF
+led_status = False     # True: LED ON, False: OFF
+
 logger = None
 
 # 終了用イベント
@@ -76,8 +79,10 @@ def setup_logger():
 # GPIO初期化
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(HEATER_GPIO_PIN, GPIO.OUT)
-# 初期状態はOFF
+GPIO.setup(LED_GPIO_PIN, GPIO.OUT)
+# 初期状態は両方OFF
 GPIO.output(HEATER_GPIO_PIN, GPIO.LOW)
+GPIO.output(LED_GPIO_PIN, GPIO.LOW)
 
 # 設定ファイルの読み込み／保存
 def load_config():
@@ -86,12 +91,14 @@ def load_config():
         # ファイルがなければ初期設定を作成
         default_config = {
             "control_enabled": True,
-            "day_start": "06:00",
-            "day_end": "18:00",
+            "day_start": "09:00",
+            "day_end": "17:00",
             "day_temp_min": 20,
             "day_temp_max": 25,
-            "night_temp_min": 18,
-            "night_temp_max": 23
+            "night_temp_min": 10,
+            "night_temp_max": 15,
+            "led_on": "07:00",
+            "led_off": "17:00"
         }
         with open(CONFIG_FILE, 'w') as f:
             json.dump(default_config, f, indent=4)
@@ -137,7 +144,22 @@ def heater_off():
         GPIO.output(HEATER_GPIO_PIN, GPIO.LOW)
         heater_status = False
 
-# 温度制御ループ（バックグラウンドスレッド）
+# LED制御用関数
+def led_on():
+    global led_status
+    if not led_status:
+        GPIO.output(LED_GPIO_PIN, GPIO.HIGH)
+        led_status = True
+        logger.info("LED ON")
+
+def led_off():
+    global led_status
+    if led_status:
+        GPIO.output(LED_GPIO_PIN, GPIO.LOW)
+        led_status = False
+        logger.info("LED OFF")
+
+# 温度・LED制御ループ（バックグラウンドスレッド）
 def control_loop():
     global current_temp, config, stop_event
     while not stop_event.is_set():
@@ -146,6 +168,7 @@ def control_loop():
             current_temp = temp
             with config_lock:
                 local_config = config.copy()
+            # ヒーター制御
             if local_config.get("control_enabled", False):
                 now = datetime.now().time()
                 try:
@@ -164,10 +187,10 @@ def control_loop():
                     temp_min = local_config["night_temp_min"]
                     temp_max = local_config["night_temp_max"]
                 # 温度制御
-                if temp < temp_min:
+                if temp < float(temp_min):
                     logger.info(f"ヒーター ON temp={temp} < {temp_min}")
                     heater_on()
-                elif temp > temp_max:
+                elif temp > float(temp_max):
                     logger.info(f"ヒーター OFF temp={temp} > {temp_max}")
                     heater_off()
                 # 温度が範囲内なら現在の状態を維持
@@ -177,6 +200,25 @@ def control_loop():
         else:
             logger.info("温度取得失敗")
             heater_off()
+
+        # LED制御：現在時刻と設定値で判定
+        with config_lock:
+            local_config = config.copy()
+        now = datetime.now().time()
+        try:
+            led_on_time = datetime.strptime(local_config["led_on"], "%H:%M").time()
+            led_off_time = datetime.strptime(local_config["led_off"], "%H:%M").time()
+        except Exception as e:
+            logger.info("LED時間設定エラー: " + str(e))
+            led_on_time = datetime.strptime("08:00", "%H:%M").time()
+            led_off_time = datetime.strptime("20:00", "%H:%M").time()
+
+        if led_on_time <= now < led_off_time:
+            if not led_status:
+                led_on()
+        else:
+            if led_status:
+                led_off()
 
         stop_event.wait(timeout=CONTROL_CYCLE)  # 制御周期
 
@@ -200,7 +242,7 @@ def get_local_ip():
         return "127.0.0.1"
 
 # ルート：HTML画面の表示
-@app.route('/')
+@app.route("/")
 def index():
     ip_address = get_local_ip()  # サーバーのIPアドレス取得
     return render_template('index.html', server_ip=ip_address)
@@ -213,12 +255,15 @@ def get_status():
     return jsonify({
         "temperature": current_temp if current_temp is not None else "--",
         "heater": heater_status,
+        "led": led_status,
         "day_start": local_config.get("day_start", "--"),
         "day_end": local_config.get("day_end", "--"),
         "day_min": local_config.get("day_temp_min", "--"),
         "day_max": local_config.get("day_temp_max", "--"),
         "night_min": local_config.get("night_temp_min", "--"),
         "night_max": local_config.get("night_temp_max", "--"),
+        "led_on": local_config.get("led_on", "--"),
+        "led_off": local_config.get("led_off", "--"),
         "control_enabled": local_config.get("control_enabled", False)
     })
 
@@ -232,7 +277,8 @@ def update_config():
     with config_lock:
         # 更新可能な項目のみ反映
         for key in ["control_enabled", "day_start", "day_end", 
-                    "day_temp_min", "day_temp_max", "night_temp_min", "night_temp_max"]:
+                    "day_temp_min", "day_temp_max", "night_temp_min", "night_temp_max",
+                    "led_on", "led_off"]:
             if key in data:
                 config[key] = data[key]
         save_config()
