@@ -6,6 +6,8 @@
     "day_temp_max": 30,
     "night_temp_min": 10,
     "night_temp_max": 15,
-    "led_on": "07:00",
-    "led_off": "17:00"
+    "led_on": "06:30",
+    "led_off": "17:00",
+    "led_force": false,
+    "cycle_time": 10
 }

@@ -179,6 +179,8 @@
                     document.getElementById('inputLedOn').value = data.led_on;
                     document.getElementById('inputLedOff').value = data.led_off;
                     document.getElementById('inputControl').checked = data.control_enabled;
+                    document.getElementById('inputForceLed').checked = data.led_force;
+                    document.getElementById('inputCycleTime').value = data.cycle_time;
                 })
                 .catch(error => console.error('Error:', error));
         }
@@ -194,7 +196,9 @@
                 night_temp_max: parseInt(document.getElementById('inputNightMax').value, 10),
                 led_on: document.getElementById('inputLedOn').value,
                 led_off: document.getElementById('inputLedOff').value,
-                control_enabled: document.getElementById('inputControl').checked
+                control_enabled: document.getElementById('inputControl').checked,
+                led_force: document.getElementById('inputForceLed').checked,
+                cycle_time: parseInt(document.getElementById('inputCycleTime').value)
             };
             fetch(URL_API_BASE + '/update_config', {
                 method: 'POST',
@@ -237,6 +241,10 @@
                         </label>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>制御周期</label>
+                    <input type="number" id="inputCycleTime" step="1" min="1" required> 秒
+                </div>
                 <div class="button-group">
                     <button type="submit">保存</button>
                     <button type="button" id="reset-btn" onclick="loadConfigIntoForm()">リセット</button>
@@ -266,13 +274,19 @@
                     <input type="number" id="inputNightMax" step="1" min="1" max="30" required> °C
                 </div>
             </div>
-            <!-- LED点灯時間 -->
             <div class="form-row">
                 <div class="form-group">
                     <label>LED点灯時間</label>
                     <input type="time" id="inputLedOn" required>
                     <span>〜</span>
                     <input type="time" id="inputLedOff" required>
+                </div>
+                <label>LED強制点灯</label>
+                <div class="switch-container">
+                    <label class="switch">
+                        <input type="checkbox" id="inputForceLed">
+                        <span class="slider"></span>
+                    </label>
                 </div>
             </div>
         </form>

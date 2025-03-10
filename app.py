@@ -37,7 +37,6 @@ except ImportError:
     GPIO = GPIO_dummy()
 
 # 定数定義
-CONTROL_CYCLE  = 60 # 60秒ごと
 DS18B20_DEVICE = "/sys/bus/w1/devices/28-01204bfedcd9/w1_slave"  # 実際のデバイスファイルに変更してください
 HEATER_GPIO_PIN = 24  # ヒーター制御用
 LED_GPIO_PIN    = 23  # LED制御用
@@ -98,7 +97,9 @@ def load_config():
             "night_temp_min": 10,
             "night_temp_max": 15,
             "led_on": "07:00",
-            "led_off": "17:00"
+            "led_off": "17:00",
+            "led_force": False,
+            "cycle_time": 10
         }
         with open(CONFIG_FILE, 'w') as f:
             json.dump(default_config, f, indent=4)
@@ -163,14 +164,15 @@ def led_off():
 def control_loop():
     global current_temp, config, stop_event
     while not stop_event.is_set():
+        with config_lock:
+            local_config = config.copy()
+        now = datetime.now().time()
+
         temp = read_temperature()
         if temp is not None:
             current_temp = temp
-            with config_lock:
-                local_config = config.copy()
             # ヒーター制御
             if local_config.get("control_enabled", False):
-                now = datetime.now().time()
                 try:
                     day_start = datetime.strptime(local_config["day_start"], "%H:%M").time()
                     day_end = datetime.strptime(local_config["day_end"], "%H:%M").time()
@@ -200,27 +202,28 @@ def control_loop():
         else:
             logger.info("温度取得失敗")
             heater_off()
-
-        # LED制御：現在時刻と設定値で判定
-        with config_lock:
-            local_config = config.copy()
-        now = datetime.now().time()
-        try:
-            led_on_time = datetime.strptime(local_config["led_on"], "%H:%M").time()
-            led_off_time = datetime.strptime(local_config["led_off"], "%H:%M").time()
-        except Exception as e:
-            logger.info("LED時間設定エラー: " + str(e))
-            led_on_time = datetime.strptime("08:00", "%H:%M").time()
-            led_off_time = datetime.strptime("20:00", "%H:%M").time()
-
-        if led_on_time <= now < led_off_time:
+ 
+        # まず、LED強制点灯が有効なら優先して LED を点灯
+        if local_config.get("led_force", False):
             if not led_status:
                 led_on()
         else:
-            if led_status:
-                led_off()
+       	    # LED制御：現在時刻と設定値で判定
+            try:
+                led_on_time = datetime.strptime(local_config["led_on"], "%H:%M").time()
+                led_off_time = datetime.strptime(local_config["led_off"], "%H:%M").time()
+            except Exception as e:
+                logger.info("LED時間設定エラー: " + str(e))
+                led_on_time = datetime.strptime("08:00", "%H:%M").time()
+                led_off_time = datetime.strptime("20:00", "%H:%M").time()
+            if led_on_time <= now < led_off_time:
+                if not led_status:
+                    led_on()
+            else:
+                if led_status:
+                    led_off()
 
-        stop_event.wait(timeout=CONTROL_CYCLE)  # 制御周期
+        stop_event.wait(timeout=local_config["cycle_time"])  # 制御周期
 
 def cleanup():
     heater_off()
@@ -264,6 +267,8 @@ def get_status():
         "night_max": local_config.get("night_temp_max", "--"),
         "led_on": local_config.get("led_on", "--"),
         "led_off": local_config.get("led_off", "--"),
+        "led_force": local_config.get("led_force", False),
+        "cycle_time": local_config.get("cycle_time", "--"),
         "control_enabled": local_config.get("control_enabled", False)
     })
 
@@ -278,7 +283,7 @@ def update_config():
         # 更新可能な項目のみ反映
         for key in ["control_enabled", "day_start", "day_end", 
                     "day_temp_min", "day_temp_max", "night_temp_min", "night_temp_max",
-                    "led_on", "led_off"]:
+                    "led_on", "led_off", "led_force", "cycle_time"]:
             if key in data:
                 config[key] = data[key]
         save_config()
