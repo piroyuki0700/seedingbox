@@ -14,7 +14,7 @@
             padding: 20px;
             margin: 20px auto;
             width: 90%;
-            max-width: 500px;
+            max-width: 400px;
             box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
             font-family: Arial, sans-serif;
         }
@@ -223,9 +223,11 @@
         <h1>🍀Seeding Box</h1>
         <div class="status-row">
             <div>温度: <span id="currentTemp">--</span></div>
+            <button onclick="updateStatus()">更新</button>
+        </div>
+        <div class="status-row">
             <div>ヒーター: <span id="heaterStatus">--</span></div>
             <div>LED照明: <span id="ledStatus">--</span></div>
-            <button onclick="updateStatus()">更新</button>
         </div>
         <hr>
         <h2>設定変更</h2>
@@ -241,10 +243,6 @@
                         </label>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>制御周期</label>
-                    <input type="number" id="inputCycleTime" step="1" min="1" required> 秒
-                </div>
                 <div class="button-group">
                     <button type="submit">保存</button>
                     <button type="button" id="reset-btn" onclick="loadConfigIntoForm()">リセット</button>
@@ -253,23 +251,19 @@
             <!-- 昼間時刻 -->
             <div class="form-row">
                 <div class="form-group">
-                    <label for="inputDayStart">昼開始時刻</label>
-                    <input type="time" id="inputDayStart" required>
-                </div>
-                <div class="form-group">
-                    <label for="inputDayEnd">夜開始時刻</label>
-                    <input type="time" id="inputDayEnd" required>
+                    <label for="inputDayStart">昼設定</label>
+                    <input type="time" id="inputDayStart" required> から
+                    <label for="inputDayMin">温度</label>
+                    <input type="number" id="inputDayMin" step="1" min="1" max="30" required> 〜
+                    <input type="number" id="inputDayMax" step="1" min="1" max="30" required> °C
                 </div>
             </div>
             <!-- 昼間温度（下限〜上限） -->
             <div class="form-row">
                 <div class="form-group">
-                    <label for="inputDayMin">昼間温度</label>
-                    <input type="number" id="inputDayMin" step="1" min="1" max="30" required> 〜
-                    <input type="number" id="inputDayMax" step="1" min="1" max="30" required> °C
-                </div>
-                <div class="form-group">
-                    <label for="inputNightMin">夜間温度</label>
+                    <label for="inputDayEnd">夜設定</label>
+                    <input type="time" id="inputDayEnd" required> から
+                    <label for="inputNightMin">温度</label>
                     <input type="number" id="inputNightMin" step="1" min="1" max="30" required> 〜
                     <input type="number" id="inputNightMax" step="1" min="1" max="30" required> °C
                 </div>
@@ -280,6 +274,12 @@
                     <input type="time" id="inputLedOn" required>
                     <span>〜</span>
                     <input type="time" id="inputLedOff" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>制御サイクル</label>
+                    <input type="number" id="inputCycleTime" step="1" min="1" required> 秒
                 </div>
                 <label>LED強制点灯</label>
                 <div class="switch-container">
