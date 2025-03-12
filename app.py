@@ -50,6 +50,8 @@ config_lock = threading.RLock()  # 設定更新時の排他制御用
 current_temp = None
 heater_status = False  # True: ヒーターON, False: OFF
 led_status = False     # True: LED ON, False: OFF
+time_of_day = 1
+temp_status = "normal"
 
 logger = None
 
@@ -162,7 +164,7 @@ def led_off():
 
 # 温度・LED制御ループ（バックグラウンドスレッド）
 def control_loop():
-    global current_temp, config, stop_event
+    global current_temp, config, stop_event, time_of_day, temp_status
     while not stop_event.is_set():
         with config_lock:
             local_config = config.copy()
@@ -183,11 +185,20 @@ def control_loop():
                     day_end = datetime.strptime("18:00", "%H:%M").time()
                 # 昼間か夜間かの判定
                 if day_start <= now <= day_end:
+                    time_of_day = 1
                     temp_min = local_config["day_temp_min"]
                     temp_max = local_config["day_temp_max"]
                 else:
+                    time_of_day = 0
                     temp_min = local_config["night_temp_min"]
                     temp_max = local_config["night_temp_max"]
+                temp_status = "normal"
+                if current_temp is not None:
+                    if current_temp < temp_min:
+                        temp_status = "low"
+                    elif current_temp > temp_max:
+                        temp_status = "high"
+                        
                 # 温度制御
                 if temp < float(temp_min):
                     logger.info(f"ヒーター ON temp={temp} < {temp_min}")
@@ -257,6 +268,8 @@ def get_status():
         local_config = config.copy()
     return jsonify({
         "temperature": current_temp if current_temp is not None else "--",
+        "time_of_day": time_of_day,
+        "temp_status": temp_status,
         "heater": heater_status,
         "led": led_status,
         "day_start": local_config.get("day_start", "--"),
