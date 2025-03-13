@@ -160,6 +160,10 @@
 
         // /statusから最新データを取得して、上部のステータスカードに反映
         function updateStatus() {
+            document.getElementById('currentTemp').innerText = "--";
+            document.getElementById('tempStatus').innerText = "--";
+            document.getElementById('heaterStatus').innerText = "--";
+            document.getElementById('ledStatus').innerText = "--";
             fetch(URL_API_BASE + '/status')
                 .then(response => response.json())
                 .then(data => {
